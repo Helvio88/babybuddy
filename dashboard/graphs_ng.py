@@ -56,13 +56,13 @@ def _num(value: Any) -> float:
 
 
 def _layout(
-    height: int = 220, dual_y: bool = False, y_title: str = "", y2_title: str = ""
+    height: int = 300, dual_y: bool = False, y_title: str = "", y2_title: str = ""
 ) -> dict:
-    """Compact dark layout — tight margins to avoid empty space under plots."""
+    """Dark layout sized for dashboard cards (readable, not sparse)."""
     layout = {
         "height": height,
         "autosize": True,
-        "margin": dict(l=42, r=18 if not dual_y else 46, t=8, b=36),
+        "margin": dict(l=48, r=24 if not dual_y else 52, t=36, b=48),
         "paper_bgcolor": PAPER,
         "plot_bgcolor": PAPER,
         "font": {
@@ -97,7 +97,7 @@ def _layout(
         "legend": {
             "orientation": "h",
             "yanchor": "bottom",
-            "y": 1.02,
+            "y": 1.08,
             "x": 0,
             "font": {"color": "rgba(255,255,255,0.85)", "size": 11},
             "bgcolor": "rgba(0,0,0,0)",
@@ -127,7 +127,6 @@ def _layout(
 
 
 def _to_parts(fig: go.Figure) -> Tuple[str, str]:
-    fig.update_layout(autosize=True)
     output = plotly.plot(
         fig,
         output_type="div",
@@ -159,7 +158,7 @@ def daily_bar(
                 hovertemplate="%{x}<br>%{y}<extra></extra>",
             )
         ],
-        layout=_layout(height=220),
+        layout=_layout(height=300),
     )
     return _to_parts(fig)
 
@@ -176,7 +175,6 @@ def dual_daily(
         return _empty()
     labels = [s["label"] for s in a_series]
     b_vals = [_num(s["value"]) for s in b_series] if b_series else []
-    # Align length if needed
     if len(b_vals) < len(labels):
         b_vals = b_vals + [0.0] * (len(labels) - len(b_vals))
     fig = go.Figure(
@@ -193,11 +191,11 @@ def dual_daily(
                 name=b_name,
                 mode="lines+markers",
                 line=dict(color=b_color, width=2.5),
-                marker=dict(size=5, color=b_color),
+                marker=dict(size=6, color=b_color),
                 yaxis="y2",
             ),
         ],
-        layout=_layout(height=230, dual_y=True, y_title=a_name, y2_title=b_name),
+        layout=_layout(height=300, dual_y=True, y_title=a_name, y2_title=b_name),
     )
     return _to_parts(fig)
 
@@ -208,8 +206,8 @@ def pie_breakdown(
     if not items:
         return _empty()
     palette = colors or PIE_PALETTE
-    layout = _layout(height=230)
-    layout["margin"] = dict(l=8, r=8, t=8, b=8)
+    layout = _layout(height=300)
+    layout["margin"] = dict(l=16, r=16, t=16, b=16)
     layout["showlegend"] = False
     fig = go.Figure(
         data=[
@@ -243,7 +241,7 @@ def hourly_bars(series: List[Dict[str, Any]], color: str = FEED) -> Tuple[str, s
                 hovertemplate="%{x}:00<br>%{y}<extra></extra>",
             )
         ],
-        layout=_layout(height=200),
+        layout=_layout(height=280),
     )
     return _to_parts(fig)
 
@@ -259,7 +257,7 @@ def interval_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
                 marker=dict(color=FEED, line=dict(width=0)),
             )
         ],
-        layout=_layout(height=200),
+        layout=_layout(height=280),
     )
     return _to_parts(fig)
 
@@ -269,8 +267,7 @@ def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
         return _empty()
     xs = [s["label"] for s in series]
     ys = [_num(s["kg"]) for s in series]
-    layout = _layout(height=240)
-    # Chronological category order
+    layout = _layout(height=320)
     layout["xaxis"]["categoryarray"] = xs
     fig = go.Figure(
         data=[
@@ -279,7 +276,7 @@ def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
                 y=ys,
                 mode="lines+markers",
                 line=dict(color=GROWTH, width=2.5),
-                marker=dict(size=6, color=GROWTH, line=dict(color=PAPER, width=1)),
+                marker=dict(size=7, color=GROWTH, line=dict(color=PAPER, width=1)),
                 fill="tozeroy",
                 fillcolor="rgba(92, 184, 92, 0.15)",
                 name="Weight (kg)",
@@ -307,7 +304,7 @@ def growth_multi(
                 mode="lines+markers",
                 name="Length (cm)",
                 line=dict(color=FEED, width=2.5),
-                marker=dict(size=6, color=FEED),
+                marker=dict(size=7, color=FEED),
             )
         )
     if head:
@@ -322,15 +319,14 @@ def growth_multi(
                 mode="lines+markers",
                 name="Head (cm)",
                 line=dict(color=PUMP, width=2.5),
-                marker=dict(size=6, color=PUMP),
+                marker=dict(size=7, color=PUMP),
             )
         )
     if not data:
         return _empty()
 
-    layout = _layout(height=240)
+    layout = _layout(height=320)
     if category_order:
-        # Prefer chronological order from date field when available
         layout["xaxis"]["categoryarray"] = category_order
         layout["xaxis"]["categoryorder"] = "array"
     fig = go.Figure(data=data, layout=layout)
@@ -349,7 +345,7 @@ def pump_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
                 name="ml",
             )
         ],
-        layout=_layout(height=220),
+        layout=_layout(height=300),
     )
     return _to_parts(fig)
 
@@ -359,7 +355,7 @@ def temp_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
         return _empty()
     xs = [s["label"] for s in series]
     ys = [_num(s["c"]) for s in series]
-    layout = _layout(height=220)
+    layout = _layout(height=300)
     layout["xaxis"]["categoryarray"] = xs
     fig = go.Figure(
         data=[
@@ -368,7 +364,7 @@ def temp_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
                 y=ys,
                 mode="lines+markers",
                 line=dict(color=TEMP, width=2.5),
-                marker=dict(size=6, color=TEMP),
+                marker=dict(size=7, color=TEMP),
                 name="°C",
             )
         ],
