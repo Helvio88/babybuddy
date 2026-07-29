@@ -1,12 +1,12 @@
-# Build and push this fork to Docker Hub: helvio/babybuddy
+# Build and push this fork to GitHub Container Registry (GHCR).
 #
-# Runs only on Helvio88/babybuddy — never on upstream babybuddy/babybuddy.
-# Requires repository secret: DOCKERHUB_TOKEN (Docker Hub access token for user "helvio").
+# Uses the built-in GITHUB_TOKEN — no Docker Hub password/secret required.
+# Runs only on Helvio88/babybuddy (never upstream).
 #
-# Image tags:
-#   helvio/babybuddy:latest          (master)
-#   helvio/babybuddy:sha-<short>     (every build)
-#   helvio/babybuddy:<git-tag>       (when a git tag is pushed)
+# Image:
+#   ghcr.io/helvio88/babybuddy:latest
+#   ghcr.io/helvio88/babybuddy:sha-<short>
+#   ghcr.io/helvio88/babybuddy:<git-tag>
 
 name: Docker Publish
 
@@ -21,16 +21,20 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: docker-publish-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   build-and-push:
-    name: Build & push helvio/babybuddy
+    name: Build & push to GHCR
     runs-on: ubuntu-latest
-    # Safety: never run if this workflow is ever present on another fork/upstream
     if: github.repository == 'Helvio88/babybuddy'
 
     steps:
@@ -40,17 +44,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: helvio
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: helvio/babybuddy
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
@@ -73,10 +78,17 @@ jobs:
 
       - name: Image summary
         run: |
-          echo "### Docker Hub" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Pushed to \`helvio/babybuddy\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### GitHub Container Registry"
+            echo ""
+            echo "Pushed with \`GITHUB_TOKEN\` (no Docker Hub password)."
+            echo ""
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo ""
+            echo "Pull example:"
+            echo '```'
+            echo "docker pull ghcr.io/helvio88/babybuddy:latest"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

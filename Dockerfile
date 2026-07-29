@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Production image for the Helvio88/babybuddy fork.
-# Pushed to Docker Hub as helvio/babybuddy by .github/workflows/docker-publish.yml
+# Pushed to ghcr.io/helvio88/babybuddy by .github/workflows/docker-publish.yml
 
 FROM python:3.12-slim-bookworm
 

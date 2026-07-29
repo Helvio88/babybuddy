@@ -1,8 +1,8 @@
-# Example compose for the forked image (helvio/babybuddy).
+# Example compose for the forked image on GitHub Container Registry.
 # Copy to docker-compose.yml and set SECRET_KEY before starting.
 services:
   babybuddy:
-    image: helvio/babybuddy:latest
+    image: ghcr.io/helvio88/babybuddy:latest
     container_name: babybuddy
     ports:
       - "8000:8000"
