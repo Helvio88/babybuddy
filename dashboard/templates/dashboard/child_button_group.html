@@ -18,6 +18,12 @@
            title="{% trans "Reports" %}">
             <i class="icon-graph" aria-hidden="true"></i>
         </a>
+        <a href="{% url 'dashboard:dashboard-ng-child' object.slug %}"
+           class="btn"
+           title="{% trans "Insights" %}">
+            <i class="icon-graph" aria-hidden="true"></i>
+            <span class="visually-hidden">{% trans "Insights" %}</span>
+        </a>
     {% endif %}
     {% if perms.core.change_child %}
         <a class="btn d-none d-md-inline-block"

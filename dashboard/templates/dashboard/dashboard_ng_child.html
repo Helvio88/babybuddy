@@ -1,0 +1,412 @@
+{% extends 'babybuddy/page.html' %}
+{% load i18n duration breadcrumb static %}
+{% block title %}
+    {% trans "Insights" %} - {{ object }}
+{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item">
+        <a href="{% url 'core:child-list' %}">{% trans "Children" %}</a>
+    </li>
+    <li class="breadcrumb-item fw-bold">
+        {% child_quick_switch object 'dashboard:dashboard-ng-child' %}
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">{% trans "Insights" %}</li>
+{% endblock %}
+{% block content %}
+    <div class="dashboard-ng">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+            <div>
+                <p class="text-uppercase text-body-secondary small mb-1 fw-semibold letter-spacing">
+                    {% trans "Baby Buddy insights" %}
+                </p>
+                <h1 class="h2 mb-1">{{ object }}</h1>
+                <p class="text-body-secondary mb-0">
+                    {% trans "Age" %}: {{ object.birth_date|timesince }}
+                    · {% trans "Born" %} {{ object.birth_date }}
+                    {% if object.birth_time %} · {{ object.birth_time }}{% endif %}
+                </p>
+            </div>
+            <div class="text-md-end">
+                <div class="btn-group" role="group" aria-label="{% trans 'Time range' %}">
+                    {% for key, label in range_choices %}
+                        <a href="?range={{ key }}"
+                           class="btn btn-sm {% if range_key == key %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                            {{ label }}
+                        </a>
+                    {% endfor %}
+                </div>
+                <p class="small text-body-secondary mt-2 mb-0">
+                    {{ data_source }} · {{ synced_at }}
+                </p>
+                <a class="btn btn-link btn-sm px-0" href="{% url 'dashboard:dashboard-child' object.slug %}">
+                    {% trans "Classic dashboard" %}
+                </a>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 border-0 shadow-sm ng-metric">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Last feed" %}</div>
+                        <div class="fs-5 fw-semibold">
+                            {% if last_feed %}{{ last_feed.start|timesince }} {% trans "ago" %}{% else %}—{% endif %}
+                        </div>
+                        <div class="small text-body-secondary">
+                            {% if last_feed %}
+                                {{ last_feed.get_method_display }}
+                                {% if last_feed.duration %} · {{ last_feed.duration|duration_string }}{% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 border-0 shadow-sm ng-metric">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Last diaper" %}</div>
+                        <div class="fs-5 fw-semibold">
+                            {% if last_change %}{{ last_change.time|timesince }} {% trans "ago" %}{% else %}—{% endif %}
+                        </div>
+                        <div class="small text-body-secondary">
+                            {% if last_change %}
+                                {% if last_change.wet %}{% trans "wet" %}{% endif %}
+                                {% if last_change.wet and last_change.solid %} + {% endif %}
+                                {% if last_change.solid %}{% trans "solid" %}{% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 border-0 shadow-sm ng-metric">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Latest weight" %}</div>
+                        <div class="fs-5 fw-semibold">
+                            {% if latest_weight %}{{ latest_weight.weight }} {% trans "kg" %}{% else %}—{% endif %}
+                        </div>
+                        <div class="small text-body-secondary">
+                            {% if latest_weight %}{{ latest_weight.date }}{% endif %}
+                            {% if weight_gain %}
+                                · {% if weight_gain.grams_per_day >= 0 %}+{% endif %}{{ weight_gain.grams_per_day|floatformat:0 }} g/d
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 border-0 shadow-sm ng-metric">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Time window" %}</div>
+                        <div class="fs-5 fw-semibold">{{ range_label }}</div>
+                        <div class="small text-body-secondary">
+                            {{ lifetime_feeds }} {% trans "feeds lifetime" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h4 mb-3">{% trans "At a glance" %}</h2>
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Feeds / day" %}</div>
+                        <div class="fs-4 fw-semibold">{{ feeds_per_day|floatformat:1 }}</div>
+                        <div class="small text-body-secondary">
+                            {{ feed_count }} {% trans "in range" %}
+                            · {% trans "avg" %} {{ avg_feed_minutes|floatformat:0 }} {% trans "min" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Feed interval" %}</div>
+                        <div class="fs-4 fw-semibold">
+                            {% if median_interval %}{{ median_interval|floatformat:0 }} {% trans "min" %}{% else %}—{% endif %}
+                        </div>
+                        <div class="small text-body-secondary">{% trans "Median between starts" %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Diapers / day" %}</div>
+                        <div class="fs-4 fw-semibold">{{ changes_per_day|floatformat:1 }}</div>
+                        <div class="small text-body-secondary">
+                            {{ wet_count }} {% trans "wet" %} · {{ solid_count }} {% trans "solid" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{% trans "Nursing time / day" %}</div>
+                        <div class="fs-4 fw-semibold">
+                            {{ hours_per_day|floatformat:1 }}h
+                        </div>
+                        <div class="small text-body-secondary">
+                            {{ total_feed_hours|floatformat:1 }}h {% trans "total" %}
+                            · {{ night_pct }}% {% trans "overnight" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h4 mb-2">{% trans "Insights for parents" %}</h2>
+        <p class="text-body-secondary small mb-3">
+            {% trans "Plain-language takeaways from the selected window — educational only, not medical advice." %}
+        </p>
+        <div class="row g-3 mb-4">
+            {% for insight in insights %}
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100 ng-insight ng-insight-{{ insight.tone }}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <strong>{{ insight.title }}</strong>
+                                <span class="badge rounded-pill text-bg-{% if insight.tone == 'warn' %}warning{% elif insight.tone == 'ok' %}success{% else %}info{% endif %}">
+                                    {% if insight.tone == 'warn' %}{% trans "Watch" %}{% elif insight.tone == 'ok' %}{% trans "Looking good" %}{% else %}{% trans "Pattern" %}{% endif %}
+                                </span>
+                            </div>
+                            <p class="mb-0 text-body-secondary">{{ insight.body }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-secondary mb-0">
+                        {% trans "Not enough data in this window for insights yet." %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <h2 class="h4 mb-3">{% trans "Feeding" %}</h2>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "Daily feed count" %}</strong>
+                    </div>
+                    <div class="card-body pt-0">
+                        {% if chart_feed_daily %}{{ chart_feed_daily|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No feeds in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "Feeds vs nursing minutes" %}</strong>
+                    </div>
+                    <div class="card-body pt-0">
+                        {% if chart_feed_dual %}{{ chart_feed_dual|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No feeds in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "Time between feeds" %}</strong>
+                    </div>
+                    <div class="card-body pt-0">
+                        {% if chart_intervals %}{{ chart_intervals|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "Need more feeds for intervals." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "When feeds happen" %}</strong>
+                    </div>
+                    <div class="card-body pt-0">
+                        {% if chart_feed_hours %}{{ chart_feed_hours|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No feeds in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "Feeding method mix" %}</strong>
+                    </div>
+                    <div class="card-body pt-0">
+                        {% if chart_methods %}{{ chart_methods|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No feeds in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "Feeding snapshot" %}</strong>
+                    </div>
+                    <div class="card-body pt-0">
+                        <div class="row g-2">
+                            <div class="col-6"><div class="border rounded p-2"><div class="small text-body-secondary">{% trans "Sessions" %}</div><div class="fw-semibold">{{ feed_count }}</div></div></div>
+                            <div class="col-6"><div class="border rounded p-2"><div class="small text-body-secondary">{% trans "Avg duration" %}</div><div class="fw-semibold">{{ avg_feed_minutes|floatformat:0 }} {% trans "min" %}</div></div></div>
+                            <div class="col-6"><div class="border rounded p-2"><div class="small text-body-secondary">{% trans "Median interval" %}</div><div class="fw-semibold">{% if median_interval %}{{ median_interval|floatformat:0 }} {% trans "min" %}{% else %}—{% endif %}</div></div></div>
+                            <div class="col-6"><div class="border rounded p-2"><div class="small text-body-secondary">{% trans "Overnight share" %}</div><div class="fw-semibold">{{ night_pct }}%</div></div></div>
+                            <div class="col-6"><div class="border rounded p-2"><div class="small text-body-secondary">{% trans "Range nursing" %}</div><div class="fw-semibold">{{ total_feed_hours|floatformat:1 }} h</div></div></div>
+                            <div class="col-6"><div class="border rounded p-2"><div class="small text-body-secondary">{% trans "Lifetime feeds" %}</div><div class="fw-semibold">{{ lifetime_feeds }}</div></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h4 mb-3">{% trans "Diapers" %}</h2>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3"><strong>{% trans "Wet vs solid by day" %}</strong></div>
+                    <div class="card-body pt-0">
+                        {% if chart_diaper_dual %}{{ chart_diaper_dual|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No changes in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3"><strong>{% trans "Change type mix" %}</strong></div>
+                    <div class="card-body pt-0">
+                        {% if chart_diaper_kinds %}{{ chart_diaper_kinds|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No changes in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3"><strong>{% trans "Stool color (solid only)" %}</strong></div>
+                    <div class="card-body pt-0">
+                        {% if chart_diaper_colors %}{{ chart_diaper_colors|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No solid stools in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3"><strong>{% trans "When changes happen" %}</strong></div>
+                    <div class="card-body pt-0">
+                        {% if chart_diaper_hours %}{{ chart_diaper_hours|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No changes in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h4 mb-3">{% trans "Growth" %}</h2>
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="small text-body-secondary">{% trans "Weight" %}</div>
+                        <div class="fs-4 fw-semibold">{% if latest_weight %}{{ latest_weight.weight }} {% trans "kg" %}{% else %}—{% endif %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="small text-body-secondary">{% trans "Length" %}</div>
+                        <div class="fs-4 fw-semibold">{% if last_height %}{{ last_height.height }} {% trans "cm" %}{% else %}—{% endif %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="small text-body-secondary">{% trans "Head" %}</div>
+                        <div class="fs-4 fw-semibold">{% if last_head %}{{ last_head.head_circumference }} {% trans "cm" %}{% else %}—{% endif %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3"><strong>{% trans "Weight over time" %}</strong></div>
+                    <div class="card-body pt-0">
+                        {% if chart_weight %}{{ chart_weight|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No weight entries yet." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3"><strong>{% trans "Length & head circumference" %}</strong></div>
+                    <div class="card-body pt-0">
+                        {% if chart_growth %}{{ chart_growth|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No length/head entries yet." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h4 mb-3">{% trans "Pumping & temperature" %}</h2>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "Daily pumping volume" %}</strong>
+                        <div class="small text-body-secondary">{{ pump_sessions }} {% trans "sessions" %} · {{ pump_ml|floatformat:0 }} {% trans "ml in range" %}</div>
+                    </div>
+                    <div class="card-body pt-0">
+                        {% if chart_pump %}{{ chart_pump|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No pumping in range." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <strong>{% trans "Temperature history" %}</strong>
+                        {% if last_temp %}<div class="small text-body-secondary">{% trans "Latest" %}: {{ last_temp.temperature }} °C</div>{% endif %}
+                    </div>
+                    <div class="card-body pt-0">
+                        {% if chart_temp %}{{ chart_temp|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No temperature readings yet." %}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h4 mb-3">{% trans "Notes" %}</h2>
+        <div class="row g-3 mb-4">
+            {% for note in notes %}
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="small text-body-secondary mb-1">{{ note.time }}</div>
+                            <p class="mb-0">{{ note.note }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-light border">{% trans "No notes yet." %}</div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <h2 class="h4 mb-3">{% trans "Recent activity" %}</h2>
+        <div class="card border-0 shadow-sm mb-4">
+            <ul class="list-group list-group-flush">
+                {% for item in recent %}
+                    <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
+                        <div>
+                            <span class="badge text-bg-secondary me-2">{{ item.kind }}</span>
+                            <strong>{{ item.title }}</strong>
+                            {% if item.detail %}<span class="text-body-secondary"> · {{ item.detail }}</span>{% endif %}
+                        </div>
+                        <span class="text-body-secondary small">{{ item.when }}</span>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-body-secondary">{% trans "No recent feeds or changes in range." %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <p class="small text-body-secondary border-top pt-3">
+            {% trans "Insights are educational, not a substitute for your pediatrician. All numbers come from live records in this Baby Buddy instance." %}
+        </p>
+    </div>
+{% endblock %}
+{% block javascript %}
+    <script src="{% static "babybuddy/js/graph.js" %}"></script>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends 'babybuddy/page.html' %}
+{% load i18n imagekit static %}
+{% block title %}
+    {% trans "Insights Dashboard" %}
+{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item fw-bold">{% trans "Insights Dashboard" %}</li>
+{% endblock %}
+{% block content %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-1">{% trans "Insights Dashboard" %}</h1>
+            <p class="text-body-secondary mb-0">
+                {% trans "Charts and parent insights from live Baby Buddy data." %}
+            </p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'dashboard:dashboard' %}">
+            <i class="icon-dashboard" aria-hidden="true"></i>
+            {% trans "Classic dashboard" %}
+        </a>
+    </div>
+    <div class="row">
+        {% for object in objects %}
+            <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <a class="text-center" href="{% url 'dashboard:dashboard-ng-child' object.slug %}?range={{ range_key|default:'14d' }}">
+                        {% if object.picture %}
+                            {% thumbnail '300x300' object.picture as thumb %}
+                                <img src="{{ thumb.url }}" class="child-photo img-fluid" alt="" />
+                            {% else %}
+                                <img src="{% static 'babybuddy/img/core/child-placeholder.png' %}"
+                                     class="child-photo img-fluid"
+                                     alt="" />
+                            {% endif %}
+                        {% else %}
+                            <img src="{% static 'babybuddy/img/core/child-placeholder.png' %}"
+                                 class="child-photo img-fluid"
+                                 alt="" />
+                        {% endif %}
+                    </a>
+                    <div class="card-body text-center">
+                        <h4 class="card-title">{{ object }}</h4>
+                        <p class="card-text">
+                            {% trans "Born" %}
+                            <span class="text-secondary">{{ object.birth_date }}</span>
+                            <br />
+                            {% trans "Age" %}
+                            <span class="text-secondary">{{ object.birth_date|timesince }}</span>
+                        </p>
+                        <a class="btn btn-primary"
+                           href="{% url 'dashboard:dashboard-ng-child' object.slug %}?range={{ range_key|default:'14d' }}">
+                            {% trans "Open insights" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">{% trans "No children yet." %}</div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

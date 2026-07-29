@@ -50,3 +50,52 @@ class ViewsTestCase(TestCase):
         )
         page = self.c.get("/dashboard/")
         self.assertEqual(page.status_code, 200)
+
+
+class DashboardNGViewsTestCase(TestCase):
+    """Tests for the Insights (dashboard-ng) page — additive, live data only."""
+
+    @classmethod
+    def setUpClass(cls):
+        super(DashboardNGViewsTestCase, cls).setUpClass()
+        fake = Faker()
+        call_command("migrate", verbosity=0)
+
+        cls.c = HttpClient()
+        fake_user = fake.simple_profile()
+        cls.credentials = {
+            "username": fake_user["username"],
+            "password": fake.password(),
+        }
+        cls.user = get_user_model().objects.create_user(
+            is_superuser=True, **cls.credentials
+        )
+        cls.c.login(**cls.credentials)
+
+    def test_dashboard_ng_views(self):
+        page = self.c.get("/dashboard-ng/")
+        self.assertEqual(page.url, "/welcome/")
+
+        call_command("fake", verbosity=0, children=1, days=1)
+        child = Child.objects.first()
+        page = self.c.get("/dashboard-ng/")
+        self.assertEqual(
+            page.url, "/children/{}/dashboard-ng/".format(child.slug)
+        )
+
+        page = self.c.get("/children/{}/dashboard-ng/".format(child.slug))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Insights")
+        self.assertContains(page, child.first_name)
+
+        page = self.c.get(
+            "/children/{}/dashboard-ng/?range=7d".format(child.slug)
+        )
+        self.assertEqual(page.status_code, 200)
+
+        Child.objects.create(
+            first_name="Second", last_name="Child", birth_date="2000-01-01"
+        )
+        page = self.c.get("/dashboard-ng/")
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Open insights")
