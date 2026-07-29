@@ -12,15 +12,15 @@ from typing import Any, Dict, List, Optional, Tuple
 import plotly.graph_objs as go
 import plotly.offline as plotly
 
-from reports.utils import default_graph_layout_options, split_graph_output
+from reports.utils import split_graph_output
 
 
 # Bright accents that read well on Baby Buddy's dark cards
-FEED = "#37abe9"       # baby buddy primary blue
-DIAPER = "#f0ad4e"     # warm amber
-GROWTH = "#5cb85c"     # green
-PUMP = "#b39ddb"       # soft purple
-TEMP = "#ff6b6b"       # coral red
+FEED = "#37abe9"  # baby buddy primary blue
+DIAPER = "#f0ad4e"  # warm amber
+GROWTH = "#5cb85c"  # green
+PUMP = "#b39ddb"  # soft purple
+TEMP = "#ff6b6b"  # coral red
 OK = "#5cb85c"
 MUTED = "rgba(255,255,255,0.45)"
 GRID = "rgba(255,255,255,0.12)"
@@ -38,31 +38,52 @@ PIE_PALETTE = [
 ]
 
 
-def _layout(height: int = 300, dual_y: bool = False, y_title: str = "", y2_title: str = "") -> dict:
-    """Dark layout based on Baby Buddy report defaults, sized for dashboard cards."""
-    base = default_graph_layout_options()
+def _num(value: Any) -> float:
+    """Coerce Django measurement / Decimal / str values to plain float for Plotly."""
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        pass
+    for attr in ("value", "kg", "cm", "c", "mm", "g"):
+        if hasattr(value, attr):
+            try:
+                return float(getattr(value, attr))
+            except (TypeError, ValueError):
+                continue
+    return float(str(value).split()[0])
+
+
+def _layout(
+    height: int = 220, dual_y: bool = False, y_title: str = "", y2_title: str = ""
+) -> dict:
+    """Compact dark layout — tight margins to avoid empty space under plots."""
     layout = {
-        **base,
         "height": height,
         "autosize": True,
-        "margin": dict(l=48, r=28 if not dual_y else 52, t=28, b=48),
+        "margin": dict(l=42, r=18 if not dual_y else 46, t=8, b=36),
         "paper_bgcolor": PAPER,
         "plot_bgcolor": PAPER,
         "font": {
-            **base["font"],
-            "size": 12,
             "color": "rgba(255, 255, 255, 0.92)",
+            "family": (
+                '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, '
+                '"Helvetica Neue", Arial, sans-serif'
+            ),
+            "size": 12,
         },
         "xaxis": {
-            **base.get("xaxis", {}),
             "showgrid": False,
             "zeroline": False,
             "color": AXIS,
             "tickfont": {"color": AXIS, "size": 11},
             "title": "",
+            "automargin": True,
+            "type": "category",
+            "categoryorder": "array",
         },
         "yaxis": {
-            **base.get("yaxis", {}),
             "showgrid": True,
             "gridcolor": GRID,
             "zeroline": False,
@@ -70,14 +91,17 @@ def _layout(height: int = 300, dual_y: bool = False, y_title: str = "", y2_title
             "tickfont": {"color": AXIS, "size": 11},
             "title": y_title,
             "titlefont": {"color": AXIS, "size": 12},
+            "automargin": True,
+            "type": "linear",
         },
         "legend": {
             "orientation": "h",
             "yanchor": "bottom",
-            "y": 1.05,
+            "y": 1.02,
             "x": 0,
             "font": {"color": "rgba(255,255,255,0.85)", "size": 11},
             "bgcolor": "rgba(0,0,0,0)",
+            "traceorder": "normal",
         },
         "hovermode": "x unified",
         "hoverlabel": {
@@ -96,6 +120,8 @@ def _layout(height: int = 300, dual_y: bool = False, y_title: str = "", y2_title
             "tickfont": {"color": AXIS, "size": 11},
             "title": y2_title,
             "titlefont": {"color": AXIS, "size": 12},
+            "type": "linear",
+            "automargin": True,
         }
     return layout
 
@@ -127,13 +153,13 @@ def daily_bar(
         data=[
             go.Bar(
                 x=[s["label"] for s in series],
-                y=[s["value"] for s in series],
+                y=[_num(s["value"]) for s in series],
                 name=name,
                 marker=dict(color=color, line=dict(width=0)),
                 hovertemplate="%{x}<br>%{y}<extra></extra>",
             )
         ],
-        layout=_layout(height=300),
+        layout=_layout(height=220),
     )
     return _to_parts(fig)
 
@@ -149,25 +175,29 @@ def dual_daily(
     if not a_series:
         return _empty()
     labels = [s["label"] for s in a_series]
+    b_vals = [_num(s["value"]) for s in b_series] if b_series else []
+    # Align length if needed
+    if len(b_vals) < len(labels):
+        b_vals = b_vals + [0.0] * (len(labels) - len(b_vals))
     fig = go.Figure(
         data=[
             go.Bar(
                 x=labels,
-                y=[s["value"] for s in a_series],
+                y=[_num(s["value"]) for s in a_series],
                 name=a_name,
                 marker=dict(color=a_color, line=dict(width=0)),
             ),
             go.Scatter(
                 x=labels,
-                y=[s["value"] for s in b_series] if b_series else [],
+                y=b_vals[: len(labels)],
                 name=b_name,
                 mode="lines+markers",
                 line=dict(color=b_color, width=2.5),
-                marker=dict(size=6, color=b_color),
+                marker=dict(size=5, color=b_color),
                 yaxis="y2",
             ),
         ],
-        layout=_layout(height=300, dual_y=True, y_title=a_name, y2_title=b_name),
+        layout=_layout(height=230, dual_y=True, y_title=a_name, y2_title=b_name),
     )
     return _to_parts(fig)
 
@@ -178,14 +208,14 @@ def pie_breakdown(
     if not items:
         return _empty()
     palette = colors or PIE_PALETTE
-    layout = _layout(height=300)
-    layout["margin"] = dict(l=16, r=16, t=16, b=16)
+    layout = _layout(height=230)
+    layout["margin"] = dict(l=8, r=8, t=8, b=8)
     layout["showlegend"] = False
     fig = go.Figure(
         data=[
             go.Pie(
                 labels=[i["name"] for i in items],
-                values=[i["value"] for i in items],
+                values=[_num(i["value"]) for i in items],
                 hole=0.48,
                 marker=dict(
                     colors=palette[: len(items)],
@@ -201,21 +231,19 @@ def pie_breakdown(
     return _to_parts(fig)
 
 
-def hourly_bars(
-    series: List[Dict[str, Any]], color: str = FEED
-) -> Tuple[str, str]:
+def hourly_bars(series: List[Dict[str, Any]], color: str = FEED) -> Tuple[str, str]:
     if not series:
         return _empty()
     fig = go.Figure(
         data=[
             go.Bar(
                 x=[s["label"] for s in series],
-                y=[s["count"] for s in series],
+                y=[_num(s["count"]) for s in series],
                 marker=dict(color=color, line=dict(width=0)),
                 hovertemplate="%{x}:00<br>%{y}<extra></extra>",
             )
         ],
-        layout=_layout(height=260),
+        layout=_layout(height=200),
     )
     return _to_parts(fig)
 
@@ -227,11 +255,11 @@ def interval_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
         data=[
             go.Bar(
                 x=[s["label"] for s in series],
-                y=[s["count"] for s in series],
+                y=[_num(s["count"]) for s in series],
                 marker=dict(color=FEED, line=dict(width=0)),
             )
         ],
-        layout=_layout(height=260),
+        layout=_layout(height=200),
     )
     return _to_parts(fig)
 
@@ -239,20 +267,25 @@ def interval_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
 def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
         return _empty()
+    xs = [s["label"] for s in series]
+    ys = [_num(s["kg"]) for s in series]
+    layout = _layout(height=240)
+    # Chronological category order
+    layout["xaxis"]["categoryarray"] = xs
     fig = go.Figure(
         data=[
             go.Scatter(
-                x=[s["label"] for s in series],
-                y=[s["kg"] for s in series],
+                x=xs,
+                y=ys,
                 mode="lines+markers",
                 line=dict(color=GROWTH, width=2.5),
-                marker=dict(size=7, color=GROWTH, line=dict(color=PAPER, width=1)),
+                marker=dict(size=6, color=GROWTH, line=dict(color=PAPER, width=1)),
                 fill="tozeroy",
                 fillcolor="rgba(92, 184, 92, 0.15)",
                 name="Weight (kg)",
             )
         ],
-        layout=_layout(height=320),
+        layout=layout,
     )
     return _to_parts(fig)
 
@@ -260,32 +293,47 @@ def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
 def growth_multi(
     height: List[Dict[str, Any]], head: List[Dict[str, Any]]
 ) -> Tuple[str, str]:
+    """Length and head as separate linear y-series vs date labels on x."""
     data = []
+    category_order: List[str] = []
+
     if height:
+        h_labels = [s["label"] for s in height]
+        category_order.extend(h_labels)
         data.append(
             go.Scatter(
-                x=[s["label"] for s in height],
-                y=[s["cm"] for s in height],
+                x=h_labels,
+                y=[_num(s["cm"]) for s in height],
                 mode="lines+markers",
                 name="Length (cm)",
                 line=dict(color=FEED, width=2.5),
-                marker=dict(size=7, color=FEED),
+                marker=dict(size=6, color=FEED),
             )
         )
     if head:
+        head_labels = [s["label"] for s in head]
+        for lab in head_labels:
+            if lab not in category_order:
+                category_order.append(lab)
         data.append(
             go.Scatter(
-                x=[s["label"] for s in head],
-                y=[s["cm"] for s in head],
+                x=head_labels,
+                y=[_num(s["cm"]) for s in head],
                 mode="lines+markers",
                 name="Head (cm)",
                 line=dict(color=PUMP, width=2.5),
-                marker=dict(size=7, color=PUMP),
+                marker=dict(size=6, color=PUMP),
             )
         )
     if not data:
         return _empty()
-    fig = go.Figure(data=data, layout=_layout(height=320))
+
+    layout = _layout(height=240)
+    if category_order:
+        # Prefer chronological order from date field when available
+        layout["xaxis"]["categoryarray"] = category_order
+        layout["xaxis"]["categoryorder"] = "array"
+    fig = go.Figure(data=data, layout=layout)
     return _to_parts(fig)
 
 
@@ -296,12 +344,12 @@ def pump_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
         data=[
             go.Bar(
                 x=[s["label"] for s in series],
-                y=[s["value"] for s in series],
+                y=[_num(s["value"]) for s in series],
                 marker=dict(color=PUMP, line=dict(width=0)),
                 name="ml",
             )
         ],
-        layout=_layout(height=300),
+        layout=_layout(height=220),
     )
     return _to_parts(fig)
 
@@ -309,18 +357,22 @@ def pump_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
 def temp_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
         return _empty()
+    xs = [s["label"] for s in series]
+    ys = [_num(s["c"]) for s in series]
+    layout = _layout(height=220)
+    layout["xaxis"]["categoryarray"] = xs
     fig = go.Figure(
         data=[
             go.Scatter(
-                x=[s["label"] for s in series],
-                y=[s["c"] for s in series],
+                x=xs,
+                y=ys,
                 mode="lines+markers",
                 line=dict(color=TEMP, width=2.5),
-                marker=dict(size=7, color=TEMP),
+                marker=dict(size=6, color=TEMP),
                 name="°C",
             )
         ],
-        layout=_layout(height=280),
+        layout=layout,
     )
     return _to_parts(fig)
 
