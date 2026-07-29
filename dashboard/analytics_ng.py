@@ -12,7 +12,6 @@ import statistics
 from collections import Counter, defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from core import models
@@ -62,6 +61,23 @@ def _mean(values: Sequence[float]) -> float:
     return float(statistics.mean(values))
 
 
+def _to_float(value: Any) -> float:
+    """Coerce Measurement / Decimal / numeric fields to float."""
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        pass
+    for attr in ("value", "kg", "cm", "c", "mm", "g"):
+        if hasattr(value, attr):
+            try:
+                return float(getattr(value, attr))
+            except (TypeError, ValueError):
+                continue
+    return float(str(value).split()[0])
+
+
 def feed_minutes(feeding: models.Feeding) -> float:
     if feeding.duration:
         return feeding.duration.total_seconds() / 60.0
@@ -97,7 +113,10 @@ def daily_counts(
         local = timezone.localtime(ts).date()
         if local in counts:
             counts[local] += 1
-    return [{"date": d.isoformat(), "label": d.strftime("%b %d"), "value": counts[d]} for d in sorted(counts)]
+    return [
+        {"date": d.isoformat(), "label": d.strftime("%b %d"), "value": counts[d]}
+        for d in sorted(counts)
+    ]
 
 
 def daily_sums(
@@ -122,6 +141,25 @@ def daily_sums(
     ]
 
 
+def weight_daily_averages(weights: Sequence[models.Weight]) -> List[Dict[str, Any]]:
+    """One point per calendar day — mean of all weigh-ins that day."""
+    by_day: Dict[datetime.date, List[float]] = defaultdict(list)
+    for w in weights:
+        by_day[w.date].append(_to_float(w.weight))
+    series: List[Dict[str, Any]] = []
+    for day in sorted(by_day):
+        vals = by_day[day]
+        series.append(
+            {
+                "date": day.isoformat(),
+                "label": day.strftime("%b %d"),
+                "kg": sum(vals) / len(vals),
+                "n": len(vals),
+            }
+        )
+    return series
+
+
 def hourly_histogram(timestamps: Iterable[datetime.datetime]) -> List[Dict[str, Any]]:
     hours = [0] * 24
     for ts in timestamps:
@@ -129,7 +167,9 @@ def hourly_histogram(timestamps: Iterable[datetime.datetime]) -> List[Dict[str, 
     return [{"hour": h, "label": f"{h:02d}", "count": hours[h]} for h in range(24)]
 
 
-def interval_histogram(intervals: Sequence[float], bin_minutes: int = 30) -> List[Dict[str, Any]]:
+def interval_histogram(
+    intervals: Sequence[float], bin_minutes: int = 30
+) -> List[Dict[str, Any]]:
     bins: Dict[int, int] = defaultdict(int)
     for mins in intervals:
         bucket = int(mins // bin_minutes) * bin_minutes
@@ -157,7 +197,7 @@ def weight_gain_per_day(weights: Sequence[models.Weight], lookback_days: int = 1
     days = (last.date - earlier.date).days
     if days <= 0:
         return None
-    gain_kg = last.weight - earlier.weight
+    gain_kg = _to_float(last.weight) - _to_float(earlier.weight)
     return {
         "grams_per_day": (gain_kg * 1000.0) / days,
         "from": earlier,
@@ -477,7 +517,9 @@ def build_dashboard_context(child: models.Child, range_key: str) -> Dict[str, An
         recent.append(
             {
                 "kind": "Feed",
-                "title": f.get_method_display() if hasattr(f, "get_method_display") else f.method,
+                "title": f.get_method_display()
+                if hasattr(f, "get_method_display")
+                else f.method,
                 "when": f.start,
                 "detail": f"{int(round(feed_minutes(f)))} min"
                 + (f" · {f.amount:g}" if f.amount else ""),
@@ -543,7 +585,9 @@ def build_dashboard_context(child: models.Child, range_key: str) -> Dict[str, An
         "last_head": last_head,
         "last_temp": last_temp,
         "methods": [{"name": k, "value": v} for k, v in method_counts.most_common()],
-        "diaper_kinds": [{"name": k, "value": v} for k, v in diaper_kinds.most_common()],
+        "diaper_kinds": [
+            {"name": k, "value": v} for k, v in diaper_kinds.most_common()
+        ],
         "diaper_colors": [
             {"name": k, "value": v} for k, v in color_counts.most_common()
         ],
@@ -555,15 +599,13 @@ def build_dashboard_context(child: models.Child, range_key: str) -> Dict[str, An
         "wet_daily": wet_daily,
         "solid_daily": solid_daily,
         "pump_daily": pump_daily,
-        "weight_series": [
-            {"date": w.date.isoformat(), "label": w.date.strftime("%b %d"), "kg": w.weight}
-            for w in weights
-        ],
+        # Daily average of all weigh-ins that calendar day
+        "weight_series": weight_daily_averages(weights),
         "height_series": [
             {
                 "date": h.date.isoformat(),
                 "label": h.date.strftime("%b %d"),
-                "cm": h.height,
+                "cm": _to_float(h.height),
             }
             for h in heights
         ],
@@ -571,7 +613,7 @@ def build_dashboard_context(child: models.Child, range_key: str) -> Dict[str, An
             {
                 "date": h.date.isoformat(),
                 "label": h.date.strftime("%b %d"),
-                "cm": h.head_circumference,
+                "cm": _to_float(h.head_circumference),
             }
             for h in heads
         ],
@@ -579,7 +621,7 @@ def build_dashboard_context(child: models.Child, range_key: str) -> Dict[str, An
             {
                 "time": timezone.localtime(t.time).isoformat(),
                 "label": timezone.localtime(t.time).strftime("%b %d"),
-                "c": t.temperature,
+                "c": _to_float(t.temperature),
             }
             for t in temps
         ],
