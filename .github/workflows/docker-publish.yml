@@ -1,0 +1,82 @@
+# Build and push this fork to Docker Hub: helvio/babybuddy
+#
+# Runs only on Helvio88/babybuddy — never on upstream babybuddy/babybuddy.
+# Requires repository secret: DOCKERHUB_TOKEN (Docker Hub access token for user "helvio").
+#
+# Image tags:
+#   helvio/babybuddy:latest          (master)
+#   helvio/babybuddy:sha-<short>     (every build)
+#   helvio/babybuddy:<git-tag>       (when a git tag is pushed)
+
+name: Docker Publish
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+      - "[0-9]*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    name: Build & push helvio/babybuddy
+    runs-on: ubuntu-latest
+    # Safety: never run if this workflow is ever present on another fork/upstream
+    if: github.repository == 'Helvio88/babybuddy'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: helvio
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: helvio/babybuddy
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Image summary
+        run: |
+          echo "### Docker Hub" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pushed to \`helvio/babybuddy\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

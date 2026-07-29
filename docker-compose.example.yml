@@ -1,0 +1,21 @@
+# Example compose for the forked image (helvio/babybuddy).
+# Copy to docker-compose.yml and set SECRET_KEY before starting.
+services:
+  babybuddy:
+    image: helvio/babybuddy:latest
+    container_name: babybuddy
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: "change-me-to-a-long-random-string"
+      ALLOWED_HOSTS: "*"
+      # DATABASE_URL: postgres://user:pass@db:5432/babybuddy
+      # CSRF_TRUSTED_ORIGINS: https://baby.example.com
+    volumes:
+      - babybuddy-data:/app/data
+      - babybuddy-media:/app/media
+    restart: unless-stopped
+
+volumes:
+  babybuddy-data:
+  babybuddy-media:
