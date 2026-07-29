@@ -409,4 +409,5 @@
 {% endblock %}
 {% block javascript %}
     <script src="{% static "babybuddy/js/graph.js" %}"></script>
+    {% if charts_js %}{{ charts_js|safe }}{% endif %}
 {% endblock %}

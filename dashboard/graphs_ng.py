@@ -2,6 +2,9 @@
 """
 Plotly chart builders for Dashboard NG (live data only).
 Independent of existing reports.graphs modules.
+
+Matches Baby Buddy reports: HTML goes in the page body; JS is deferred until
+after babybuddy/js/graph.js (Plotly) loads, so Plotly is defined.
 """
 from __future__ import annotations
 
@@ -9,6 +12,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import plotly.graph_objs as go
 import plotly.offline as plotly
+
+from reports.utils import split_graph_output
 
 
 PRIMARY = "#2f6f6a"
@@ -35,18 +40,26 @@ def _layout(title: str = "", height: int = 280) -> go.Layout:
     )
 
 
-def _to_html(fig: go.Figure) -> str:
-    return plotly.plot(
+def _to_parts(fig: go.Figure) -> Tuple[str, str]:
+    """Return (html_div, script_tags) so Plotly JS can load first."""
+    output = plotly.plot(
         fig,
         output_type="div",
         include_plotlyjs=False,
         config={"displayModeBar": False, "responsive": True},
     )
+    return split_graph_output(output)
 
 
-def daily_bar(series: List[Dict[str, Any]], color: str = FEED, name: str = "Count") -> str:
+def _empty() -> Tuple[str, str]:
+    return "", ""
+
+
+def daily_bar(
+    series: List[Dict[str, Any]], color: str = FEED, name: str = "Count"
+) -> Tuple[str, str]:
     if not series:
-        return ""
+        return _empty()
     fig = go.Figure(
         data=[
             go.Bar(
@@ -58,7 +71,7 @@ def daily_bar(series: List[Dict[str, Any]], color: str = FEED, name: str = "Coun
         ],
         layout=_layout(),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
 def dual_daily(
@@ -68,9 +81,9 @@ def dual_daily(
     b_name: str,
     a_color: str = FEED,
     b_color: str = GROWTH,
-) -> str:
+) -> Tuple[str, str]:
     if not a_series:
-        return ""
+        return _empty()
     labels = [s["label"] for s in a_series]
     fig = go.Figure(
         data=[
@@ -102,12 +115,14 @@ def dual_daily(
             hovermode="x unified",
         ),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
-def pie_breakdown(items: List[Dict[str, Any]], colors: Optional[List[str]] = None) -> str:
+def pie_breakdown(
+    items: List[Dict[str, Any]], colors: Optional[List[str]] = None
+) -> Tuple[str, str]:
     if not items:
-        return ""
+        return _empty()
     palette = colors or [PRIMARY, DIAPER, GROWTH, PUMP, OK, MUTED]
     fig = go.Figure(
         data=[
@@ -128,12 +143,14 @@ def pie_breakdown(items: List[Dict[str, Any]], colors: Optional[List[str]] = Non
             showlegend=False,
         ),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
-def hourly_bars(series: List[Dict[str, Any]], color: str = FEED) -> str:
+def hourly_bars(
+    series: List[Dict[str, Any]], color: str = FEED
+) -> Tuple[str, str]:
     if not series:
-        return ""
+        return _empty()
     fig = go.Figure(
         data=[
             go.Bar(
@@ -144,12 +161,12 @@ def hourly_bars(series: List[Dict[str, Any]], color: str = FEED) -> str:
         ],
         layout=_layout(height=240),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
-def interval_bars(series: List[Dict[str, Any]]) -> str:
+def interval_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
-        return ""
+        return _empty()
     fig = go.Figure(
         data=[
             go.Bar(
@@ -160,12 +177,12 @@ def interval_bars(series: List[Dict[str, Any]]) -> str:
         ],
         layout=_layout(height=240),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
-def weight_line(series: List[Dict[str, Any]]) -> str:
+def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
-        return ""
+        return _empty()
     fig = go.Figure(
         data=[
             go.Scatter(
@@ -179,10 +196,12 @@ def weight_line(series: List[Dict[str, Any]]) -> str:
         ],
         layout=_layout(height=300),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
-def growth_multi(height: List[Dict[str, Any]], head: List[Dict[str, Any]]) -> str:
+def growth_multi(
+    height: List[Dict[str, Any]], head: List[Dict[str, Any]]
+) -> Tuple[str, str]:
     data = []
     if height:
         data.append(
@@ -205,14 +224,14 @@ def growth_multi(height: List[Dict[str, Any]], head: List[Dict[str, Any]]) -> st
             )
         )
     if not data:
-        return ""
+        return _empty()
     fig = go.Figure(data=data, layout=_layout(height=300))
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
-def pump_bars(series: List[Dict[str, Any]]) -> str:
+def pump_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
-        return ""
+        return _empty()
     fig = go.Figure(
         data=[
             go.Bar(
@@ -224,12 +243,12 @@ def pump_bars(series: List[Dict[str, Any]]) -> str:
         ],
         layout=_layout(),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
-def temp_line(series: List[Dict[str, Any]]) -> str:
+def temp_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
-        return ""
+        return _empty()
     fig = go.Figure(
         data=[
             go.Scatter(
@@ -242,12 +261,16 @@ def temp_line(series: List[Dict[str, Any]]) -> str:
         ],
         layout=_layout(height=260),
     )
-    return _to_html(fig)
+    return _to_parts(fig)
 
 
 def build_all_charts(ctx: Dict[str, Any]) -> Dict[str, str]:
-    """Return HTML divs for each chart section."""
-    return {
+    """
+    Return chart HTML keys plus a single charts_js blob for the footer.
+
+    Template must load graph.js first, then {{ charts_js|safe }}.
+    """
+    parts = {
         "chart_feed_daily": daily_bar(ctx.get("feed_daily") or [], FEED, "Feeds"),
         "chart_feed_dual": dual_daily(
             ctx.get("feed_daily") or [],
@@ -281,3 +304,12 @@ def build_all_charts(ctx: Dict[str, Any]) -> Dict[str, str]:
         "chart_pump": pump_bars(ctx.get("pump_daily") or []),
         "chart_temp": temp_line(ctx.get("temp_series") or []),
     }
+
+    out: Dict[str, str] = {}
+    js_chunks: List[str] = []
+    for key, (html, js) in parts.items():
+        out[key] = html
+        if js:
+            js_chunks.append(js)
+    out["charts_js"] = "\n".join(js_chunks)
+    return out
