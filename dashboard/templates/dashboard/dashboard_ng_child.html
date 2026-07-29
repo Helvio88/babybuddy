@@ -14,27 +14,34 @@
 {% endblock %}
 {% block content %}
     <style>
-        /* Full-width Insights layout + Plotly sizing on dark theme */
+        /* Full-width Insights layout + tight Plotly sizing on dark theme */
         .dashboard-ng {
             width: 100%;
             max-width: 100%;
         }
         .dashboard-ng .row {
             --bs-gutter-x: 1rem;
-            --bs-gutter-y: 1rem;
+            --bs-gutter-y: 0.75rem;
         }
         .dashboard-ng .row > [class*="col-"] {
-            min-width: 0; /* prevent grid/flex shrink of chart columns */
+            min-width: 0;
         }
+        /* Do not force equal-height stretch — that left empty space under shorter charts */
         .dashboard-ng .card {
             width: 100%;
-            height: 100%;
+            height: auto;
             margin-bottom: 0;
         }
         .dashboard-ng .card-header {
             background: transparent;
             border-bottom-color: rgba(255, 255, 255, 0.08);
             font-weight: 600;
+            padding-top: 0.65rem;
+            padding-bottom: 0.5rem;
+        }
+        .dashboard-ng .card-body {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
         }
         .dashboard-ng .ng-metric .fs-4,
         .dashboard-ng .ng-metric .fs-5 {
@@ -42,7 +49,9 @@
         }
         .dashboard-ng .ng-chart {
             width: 100%;
-            min-height: 260px;
+            min-height: 0;
+            height: auto;
+            line-height: 0;
             overflow: hidden;
         }
         .dashboard-ng .ng-chart .js-plotly-plot,
@@ -51,6 +60,8 @@
         .dashboard-ng .ng-chart .svg-container {
             width: 100% !important;
             max-width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
         }
         .dashboard-ng .ng-insight-ok {
             border-left: 3px solid #5cb85c;
@@ -69,9 +80,9 @@
             height: 100%;
         }
         .dashboard-ng .ng-section-title {
-            margin-top: 1.75rem;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.35rem;
+            margin-top: 1.25rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.3rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
         @media (min-width: 992px) {
@@ -85,7 +96,7 @@
     </style>
 
     <div class="dashboard-ng container-fluid px-0">
-        <div class="ng-header mb-4">
+        <div class="ng-header mb-3">
             <div class="mb-3 mb-lg-0">
                 <p class="text-uppercase text-body-secondary small mb-1 fw-semibold">
                     {% trans "Baby Buddy insights" %}
@@ -116,8 +127,8 @@
         </div>
 
         {# Status strip #}
-        <div class="row mb-3">
-            <div class="col-12 col-sm-6 col-xl-3 mb-3">
+        <div class="row mb-2">
+            <div class="col-12 col-sm-6 col-xl-3 mb-2">
                 <div class="card card-dashboard ng-metric">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Last feed" %}</div>
@@ -133,7 +144,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="col-12 col-sm-6 col-xl-3 mb-2">
                 <div class="card card-dashboard ng-metric">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Last diaper" %}</div>
@@ -150,7 +161,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="col-12 col-sm-6 col-xl-3 mb-2">
                 <div class="card card-dashboard ng-metric">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Latest weight" %}</div>
@@ -166,7 +177,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="col-12 col-sm-6 col-xl-3 mb-2">
                 <div class="card card-dashboard ng-metric">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Time window" %}</div>
@@ -180,8 +191,8 @@
         </div>
 
         <h2 class="h4 ng-section-title">{% trans "At a glance" %}</h2>
-        <div class="row mb-2">
-            <div class="col-6 col-xl-3 mb-3">
+        <div class="row mb-1">
+            <div class="col-6 col-xl-3 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Feeds / day" %}</div>
@@ -193,7 +204,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3 mb-3">
+            <div class="col-6 col-xl-3 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Feed interval" %}</div>
@@ -204,7 +215,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3 mb-3">
+            <div class="col-6 col-xl-3 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Diapers / day" %}</div>
@@ -215,7 +226,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3 mb-3">
+            <div class="col-6 col-xl-3 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-body">
                         <div class="text-body-secondary small">{% trans "Nursing time / day" %}</div>
@@ -230,12 +241,12 @@
         </div>
 
         <h2 class="h4 ng-section-title">{% trans "Insights for parents" %}</h2>
-        <p class="text-body-secondary small mb-3">
+        <p class="text-body-secondary small mb-2">
             {% trans "Plain-language takeaways from the selected window — educational only, not medical advice." %}
         </p>
-        <div class="row mb-2">
+        <div class="row mb-1">
             {% for insight in insights %}
-                <div class="col-12 col-md-6 mb-3">
+                <div class="col-12 col-md-6 mb-2">
                     <div class="card card-dashboard h-100 ng-insight-{{ insight.tone }}">
                         <div class="card-body">
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
@@ -257,7 +268,7 @@
 
         <h2 class="h4 ng-section-title">{% trans "Feeding" %}</h2>
         <div class="row">
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Daily feed count" %}</div>
                     <div class="card-body">
@@ -267,7 +278,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Feeds vs nursing minutes" %}</div>
                     <div class="card-body">
@@ -277,7 +288,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Time between feeds" %}</div>
                     <div class="card-body">
@@ -287,7 +298,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "When feeds happen" %}</div>
                     <div class="card-body">
@@ -297,7 +308,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Feeding method mix" %}</div>
                     <div class="card-body">
@@ -307,7 +318,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Feeding snapshot" %}</div>
                     <div class="card-body">
@@ -326,7 +337,7 @@
 
         <h2 class="h4 ng-section-title">{% trans "Diapers" %}</h2>
         <div class="row">
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Wet vs solid by day" %}</div>
                     <div class="card-body">
@@ -336,7 +347,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Change type mix" %}</div>
                     <div class="card-body">
@@ -346,7 +357,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Stool color (solid only)" %}</div>
                     <div class="card-body">
@@ -356,7 +367,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "When changes happen" %}</div>
                     <div class="card-body">
@@ -369,8 +380,8 @@
         </div>
 
         <h2 class="h4 ng-section-title">{% trans "Growth" %}</h2>
-        <div class="row mb-2">
-            <div class="col-12 col-md-4 mb-3">
+        <div class="row mb-1">
+            <div class="col-12 col-md-4 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-body">
                         <div class="small text-body-secondary">{% trans "Weight" %}</div>
@@ -378,7 +389,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-md-4 mb-3">
+            <div class="col-12 col-md-4 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-body">
                         <div class="small text-body-secondary">{% trans "Length" %}</div>
@@ -386,7 +397,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-md-4 mb-3">
+            <div class="col-12 col-md-4 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-body">
                         <div class="small text-body-secondary">{% trans "Head" %}</div>
@@ -396,9 +407,9 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
-                    <div class="card-header">{% trans "Weight over time" %}</div>
+                    <div class="card-header">{% trans "Weight (daily average)" %}</div>
                     <div class="card-body">
                         <div class="ng-chart">
                             {% if chart_weight %}{{ chart_weight|safe }}{% else %}<p class="text-body-secondary small mb-0">{% trans "No weight entries yet." %}</p>{% endif %}
@@ -406,7 +417,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">{% trans "Length & head circumference" %}</div>
                     <div class="card-body">
@@ -420,7 +431,7 @@
 
         <h2 class="h4 ng-section-title">{% trans "Pumping & temperature" %}</h2>
         <div class="row">
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">
                         {% trans "Daily pumping volume" %}
@@ -433,7 +444,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-6 mb-3">
+            <div class="col-12 col-lg-6 mb-2">
                 <div class="card card-dashboard">
                     <div class="card-header">
                         {% trans "Temperature history" %}
@@ -449,9 +460,9 @@
         </div>
 
         <h2 class="h4 ng-section-title">{% trans "Notes" %}</h2>
-        <div class="row mb-2">
+        <div class="row mb-1">
             {% for note in notes %}
-                <div class="col-12 col-md-4 mb-3">
+                <div class="col-12 col-md-4 mb-2">
                     <div class="card card-dashboard h-100">
                         <div class="card-body">
                             <div class="small text-body-secondary mb-1">{{ note.time }}</div>
@@ -467,7 +478,7 @@
         </div>
 
         <h2 class="h4 ng-section-title">{% trans "Recent activity" %}</h2>
-        <div class="card card-dashboard mb-4">
+        <div class="card card-dashboard mb-3">
             <ul class="list-group list-group-flush">
                 {% for item in recent %}
                     <li class="list-group-item d-flex flex-wrap justify-content-between gap-2 bg-transparent text-body">
@@ -493,7 +504,6 @@
     <script src="{% static "babybuddy/js/graph.js" %}"></script>
     {% if charts_js %}{{ charts_js|safe }}{% endif %}
     <script>
-        // Ensure Plotly charts fill their cards after layout settles.
         (function () {
             function resizeNgCharts() {
                 if (typeof Plotly === "undefined") return;
@@ -504,7 +514,7 @@
             window.addEventListener("load", resizeNgCharts);
             window.addEventListener("resize", resizeNgCharts);
             setTimeout(resizeNgCharts, 100);
-            setTimeout(resizeNgCharts, 500);
+            setTimeout(resizeNgCharts, 400);
         })();
     </script>
 {% endblock %}
