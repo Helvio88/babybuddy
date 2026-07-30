@@ -56,13 +56,19 @@ def _num(value: Any) -> float:
 
 
 def _layout(
-    height: int = 300, dual_y: bool = False, y_title: str = "", y2_title: str = ""
+    height: int = 300,
+    dual_y: bool = False,
+    y_title: str = "",
+    y2_title: str = "",
+    x_type: str = "category",
 ) -> dict:
     """Dark layout sized for dashboard cards (readable, not sparse)."""
     layout = {
+        # Fixed height; width is applied client-side from the card container.
+        # Avoid autosize/responsive feedback loops that shrink charts on desktop.
         "height": height,
-        "autosize": True,
-        "margin": dict(l=48, r=24 if not dual_y else 52, t=36, b=48),
+        "autosize": False,
+        "margin": dict(l=48, r=24 if not dual_y else 52, t=40, b=52),
         "paper_bgcolor": PAPER,
         "plot_bgcolor": PAPER,
         "font": {
@@ -80,8 +86,7 @@ def _layout(
             "tickfont": {"color": AXIS, "size": 11},
             "title": "",
             "automargin": True,
-            "type": "category",
-            "categoryorder": "array",
+            "type": x_type,
         },
         "yaxis": {
             "showgrid": True,
@@ -110,6 +115,8 @@ def _layout(
             "font": {"color": "#fff", "size": 12},
         },
     }
+    if x_type == "category":
+        layout["xaxis"]["categoryorder"] = "array"
     if dual_y:
         layout["yaxis2"] = {
             "overlaying": "y",
@@ -127,13 +134,15 @@ def _layout(
 
 
 def _to_parts(fig: go.Figure) -> Tuple[str, str]:
+    # responsive=False: we set width explicitly from the card after layout.
     output = plotly.plot(
         fig,
         output_type="div",
         include_plotlyjs=False,
         config={
             "displayModeBar": False,
-            "responsive": True,
+            "responsive": False,
+            "staticPlot": False,
         },
     )
     return split_graph_output(output)
@@ -148,17 +157,20 @@ def daily_bar(
 ) -> Tuple[str, str]:
     if not series:
         return _empty()
+    labels = [s["label"] for s in series]
+    layout = _layout(height=300)
+    layout["xaxis"]["categoryarray"] = labels
     fig = go.Figure(
         data=[
             go.Bar(
-                x=[s["label"] for s in series],
+                x=labels,
                 y=[_num(s["value"]) for s in series],
                 name=name,
                 marker=dict(color=color, line=dict(width=0)),
                 hovertemplate="%{x}<br>%{y}<extra></extra>",
             )
         ],
-        layout=_layout(height=300),
+        layout=layout,
     )
     return _to_parts(fig)
 
@@ -177,6 +189,8 @@ def dual_daily(
     b_vals = [_num(s["value"]) for s in b_series] if b_series else []
     if len(b_vals) < len(labels):
         b_vals = b_vals + [0.0] * (len(labels) - len(b_vals))
+    layout = _layout(height=300, dual_y=True, y_title=a_name, y2_title=b_name)
+    layout["xaxis"]["categoryarray"] = labels
     fig = go.Figure(
         data=[
             go.Bar(
@@ -195,7 +209,7 @@ def dual_daily(
                 yaxis="y2",
             ),
         ],
-        layout=_layout(height=300, dual_y=True, y_title=a_name, y2_title=b_name),
+        layout=layout,
     )
     return _to_parts(fig)
 
@@ -232,16 +246,19 @@ def pie_breakdown(
 def hourly_bars(series: List[Dict[str, Any]], color: str = FEED) -> Tuple[str, str]:
     if not series:
         return _empty()
+    labels = [s["label"] for s in series]
+    layout = _layout(height=280)
+    layout["xaxis"]["categoryarray"] = labels
     fig = go.Figure(
         data=[
             go.Bar(
-                x=[s["label"] for s in series],
+                x=labels,
                 y=[_num(s["count"]) for s in series],
                 marker=dict(color=color, line=dict(width=0)),
                 hovertemplate="%{x}:00<br>%{y}<extra></extra>",
             )
         ],
-        layout=_layout(height=280),
+        layout=layout,
     )
     return _to_parts(fig)
 
@@ -249,15 +266,18 @@ def hourly_bars(series: List[Dict[str, Any]], color: str = FEED) -> Tuple[str, s
 def interval_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
         return _empty()
+    labels = [s["label"] for s in series]
+    layout = _layout(height=280)
+    layout["xaxis"]["categoryarray"] = labels
     fig = go.Figure(
         data=[
             go.Bar(
-                x=[s["label"] for s in series],
+                x=labels,
                 y=[_num(s["count"]) for s in series],
                 marker=dict(color=FEED, line=dict(width=0)),
             )
         ],
-        layout=_layout(height=280),
+        layout=layout,
     )
     return _to_parts(fig)
 
@@ -265,10 +285,11 @@ def interval_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
 def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
         return _empty()
-    xs = [s["label"] for s in series]
+    # Prefer ISO dates so the axis is chronological (not label category order).
+    xs = [s.get("date") or s["label"] for s in series]
     ys = [_num(s["kg"]) for s in series]
-    layout = _layout(height=320)
-    layout["xaxis"]["categoryarray"] = xs
+    layout = _layout(height=320, x_type="date")
+    layout["xaxis"]["tickformat"] = "%b %d"
     fig = go.Figure(
         data=[
             go.Scatter(
@@ -280,6 +301,7 @@ def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
                 fill="tozeroy",
                 fillcolor="rgba(92, 184, 92, 0.15)",
                 name="Weight (kg)",
+                hovertemplate="%{x|%b %d}<br>%{y:.3f} kg<extra></extra>",
             )
         ],
         layout=layout,
@@ -290,45 +312,41 @@ def weight_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
 def growth_multi(
     height: List[Dict[str, Any]], head: List[Dict[str, Any]]
 ) -> Tuple[str, str]:
-    """Length and head as separate linear y-series vs date labels on x."""
+    """Length and head on a shared chronological date axis."""
     data = []
-    category_order: List[str] = []
 
     if height:
-        h_labels = [s["label"] for s in height]
-        category_order.extend(h_labels)
+        # Sort by real date so the line never zig-zags backwards.
+        h_sorted = sorted(height, key=lambda s: s.get("date") or s["label"])
         data.append(
             go.Scatter(
-                x=h_labels,
-                y=[_num(s["cm"]) for s in height],
+                x=[s.get("date") or s["label"] for s in h_sorted],
+                y=[_num(s["cm"]) for s in h_sorted],
                 mode="lines+markers",
                 name="Length (cm)",
                 line=dict(color=FEED, width=2.5),
                 marker=dict(size=7, color=FEED),
+                hovertemplate="%{x|%b %d}<br>Length: %{y:.1f} cm<extra></extra>",
             )
         )
     if head:
-        head_labels = [s["label"] for s in head]
-        for lab in head_labels:
-            if lab not in category_order:
-                category_order.append(lab)
+        head_sorted = sorted(head, key=lambda s: s.get("date") or s["label"])
         data.append(
             go.Scatter(
-                x=head_labels,
-                y=[_num(s["cm"]) for s in head],
+                x=[s.get("date") or s["label"] for s in head_sorted],
+                y=[_num(s["cm"]) for s in head_sorted],
                 mode="lines+markers",
                 name="Head (cm)",
                 line=dict(color=PUMP, width=2.5),
                 marker=dict(size=7, color=PUMP),
+                hovertemplate="%{x|%b %d}<br>Head: %{y:.1f} cm<extra></extra>",
             )
         )
     if not data:
         return _empty()
 
-    layout = _layout(height=320)
-    if category_order:
-        layout["xaxis"]["categoryarray"] = category_order
-        layout["xaxis"]["categoryorder"] = "array"
+    layout = _layout(height=320, x_type="date")
+    layout["xaxis"]["tickformat"] = "%b %d"
     fig = go.Figure(data=data, layout=layout)
     return _to_parts(fig)
 
@@ -336,16 +354,19 @@ def growth_multi(
 def pump_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
         return _empty()
+    labels = [s["label"] for s in series]
+    layout = _layout(height=300)
+    layout["xaxis"]["categoryarray"] = labels
     fig = go.Figure(
         data=[
             go.Bar(
-                x=[s["label"] for s in series],
+                x=labels,
                 y=[_num(s["value"]) for s in series],
                 marker=dict(color=PUMP, line=dict(width=0)),
                 name="ml",
             )
         ],
-        layout=_layout(height=300),
+        layout=layout,
     )
     return _to_parts(fig)
 
@@ -353,10 +374,11 @@ def pump_bars(series: List[Dict[str, Any]]) -> Tuple[str, str]:
 def temp_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
     if not series:
         return _empty()
-    xs = [s["label"] for s in series]
+    # Prefer ISO timestamps for correct chronological order.
+    xs = [s.get("time") or s.get("date") or s["label"] for s in series]
     ys = [_num(s["c"]) for s in series]
-    layout = _layout(height=300)
-    layout["xaxis"]["categoryarray"] = xs
+    layout = _layout(height=300, x_type="date")
+    layout["xaxis"]["tickformat"] = "%b %d"
     fig = go.Figure(
         data=[
             go.Scatter(
@@ -366,6 +388,7 @@ def temp_line(series: List[Dict[str, Any]]) -> Tuple[str, str]:
                 line=dict(color=TEMP, width=2.5),
                 marker=dict(size=7, color=TEMP),
                 name="°C",
+                hovertemplate="%{x|%b %d %H:%M}<br>%{y:.1f} °C<extra></extra>",
             )
         ],
         layout=layout,
