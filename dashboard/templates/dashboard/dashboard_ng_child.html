@@ -14,7 +14,7 @@
 {% endblock %}
 {% block content %}
     <style>
-        /* Full-width Insights layout + Plotly sizing on dark theme */
+        /* Full-width Insights layout + stable Plotly sizing */
         .dashboard-ng {
             width: 100%;
             max-width: 100%;
@@ -23,6 +23,8 @@
             --bs-gutter-x: 1rem;
             --bs-gutter-y: 1rem;
         }
+        /* min-width:0 lets Bootstrap columns shrink without overflow, but
+           each chart host must still own a full column width. */
         .dashboard-ng .row > [class*="col-"] {
             min-width: 0;
         }
@@ -40,21 +42,13 @@
         .dashboard-ng .ng-metric .fs-5 {
             word-break: break-word;
         }
-        /* Reserve space so Plotly can paint; do NOT force height:auto on plot nodes */
+        /* Chart host: full column width, fixed min height. Do not style
+           Plotly internals with width:100% — that feeds a shrink loop. */
         .dashboard-ng .ng-chart {
             width: 100%;
             min-height: 280px;
+            position: relative;
             overflow: hidden;
-        }
-        .dashboard-ng .ng-chart .js-plotly-plot,
-        .dashboard-ng .ng-chart .plotly-graph-div {
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        .dashboard-ng .ng-chart .plot-container,
-        .dashboard-ng .ng-chart .svg-container {
-            width: 100% !important;
-            max-width: 100% !important;
         }
         .dashboard-ng .ng-insight-ok {
             border-left: 3px solid #5cb85c;
@@ -498,16 +492,27 @@
     {% if charts_js %}{{ charts_js|safe }}{% endif %}
     <script>
         (function () {
-            function resizeNgCharts() {
+            function sizeNgCharts() {
                 if (typeof Plotly === "undefined") return;
-                document.querySelectorAll(".dashboard-ng .js-plotly-plot").forEach(function (el) {
-                    try { Plotly.Plots.resize(el); } catch (e) {}
+                document.querySelectorAll(".dashboard-ng .ng-chart .js-plotly-plot").forEach(function (el) {
+                    var host = el.closest(".ng-chart");
+                    if (!host) return;
+                    var w = Math.floor(host.getBoundingClientRect().width);
+                    if (!w || w < 40) return;
+                    var h = (el.layout && el.layout.height) ? el.layout.height : 300;
+                    try {
+                        Plotly.relayout(el, { width: w, height: h });
+                    } catch (e) {
+                        try { Plotly.Plots.resize(el); } catch (e2) {}
+                    }
                 });
             }
-            window.addEventListener("load", resizeNgCharts);
-            window.addEventListener("resize", resizeNgCharts);
-            setTimeout(resizeNgCharts, 150);
-            setTimeout(resizeNgCharts, 600);
+            window.addEventListener("load", sizeNgCharts);
+            window.addEventListener("resize", sizeNgCharts);
+            // After Plotly injects SVGs and Bootstrap finishes column layout
+            setTimeout(sizeNgCharts, 50);
+            setTimeout(sizeNgCharts, 250);
+            setTimeout(sizeNgCharts, 800);
         })();
     </script>
 {% endblock %}
